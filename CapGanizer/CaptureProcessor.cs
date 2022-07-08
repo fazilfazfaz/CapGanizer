@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace CapGanizer
@@ -21,21 +22,65 @@ namespace CapGanizer
             return true;
         }
 
+        private static String GetProcessFilesLogFilePath()
+        {
+            String exeDir = AppDomain.CurrentDomain.BaseDirectory;
+            return System.IO.Path.Combine(exeDir, "files.capganizer");
+        }
+
+        private static HashSet<String> GetProcessedFiles()
+        {
+            var logFilePath = GetProcessFilesLogFilePath();
+            if (System.IO.File.Exists(logFilePath))
+            {
+                return new HashSet<string>(System.IO.File.ReadAllLines(logFilePath));
+            }
+            else
+            {
+                return new HashSet<string> { };
+            }
+        }
+
+        private static Boolean WriteProcessedFiles(HashSet<string> lines)
+        {
+            var logFilePath = GetProcessFilesLogFilePath();
+            var linesToWrite = new String[lines.Count];
+            lines.CopyTo(linesToWrite);
+            try
+            {
+                System.IO.File.WriteAllLines(logFilePath, linesToWrite);
+                Trace.TraceInformation($"Saved {linesToWrite.Length} files to archive");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Trace.TraceError($"Failed to save logs to {logFilePath}");
+                return false;
+            }
+        }
+
         public static Boolean ProcessDirectory(String targetDir)
         {
+            Trace.TraceInformation($"Starting to process {targetDir}");
             var captureDir = System.IO.Path.Combine(Environment.GetFolderPath(System.Environment.SpecialFolder.MyVideos), "Captures");
-            if(!System.IO.Directory.Exists(targetDir))
+            if (!System.IO.Directory.Exists(targetDir))
             {
-                Console.Write($"Could not find the target directory {targetDir}");
+                Trace.TraceError($"Could not find the target directory {targetDir}");
                 return false;
             }
             var files = System.IO.Directory.EnumerateFiles(captureDir);
             var filenamePattern = new Regex(@"^(.*?)(\d{1,2}.\d{1,2}.\d{4}.\d{1,2}.\d{1,2}.\d{1,2}.PM)(\.[a-zA-Z]+)$", RegexOptions.Compiled);
             int filesProcessed = 0;
             var directoriesAlreadyAvailable = new HashSet<String> { };
+            var processedFilesSet = GetProcessedFiles();
+            Trace.TraceInformation($"{processedFilesSet.Count} files found in the archive");
             foreach (var fileFullPath in files)
             {
                 var fileName = System.IO.Path.GetFileName(fileFullPath);
+                if (processedFilesSet.Contains(fileName))
+                {
+                    continue;
+                }
                 var match = filenamePattern.Match(fileName);
                 if (match.Success)
                 {
@@ -60,30 +105,33 @@ namespace CapGanizer
                             }
                             catch (Exception e)
                             {
-                                Console.Write($"Could not create the directory {targetFileDir}");
+                                Trace.TraceError($"Could not create the directory {targetFileDir}");
                                 return false;
                             }
 
                         }
                         directoriesAlreadyAvailable.Add(targetFileDir);
                     }
-                    if(System.IO.File.Exists(targetFilepath))
+                    if (System.IO.File.Exists(targetFilepath))
                     {
+                        processedFilesSet.Add(fileName);
                         continue;
                     }
                     try
                     {
                         System.IO.File.Copy(fileFullPath, targetFilepath);
                         filesProcessed += 1;
-
+                        processedFilesSet.Add(fileName);
                     }
                     catch (Exception e)
                     {
-                        Console.Write($"Could not copy the file to {targetFilepath}");
+                        Trace.TraceError($"Could not copy the file to {targetFilepath}");
                         return false;
                     }
                 }
             }
+            WriteProcessedFiles(processedFilesSet);
+            Trace.TraceInformation($"Completed processing {targetDir}");
             return true;
         }
 
