@@ -7,8 +7,14 @@ namespace CapGanizer
 {
     class CaptureProcessor
     {
+        Program.Options o;
 
-        public static Boolean ProcessDirectories(IEnumerable<string> targetDirs)
+        public CaptureProcessor(Program.Options o)
+        {
+            this.o = o;
+        }
+
+        public Boolean ProcessDirectories(IEnumerable<string> targetDirs)
         {
             Boolean isSuccesfull = true;
             foreach (String targetDir in targetDirs)
@@ -22,13 +28,13 @@ namespace CapGanizer
             return true;
         }
 
-        private static String GetProcessFilesLogFilePath()
+        private String GetProcessFilesLogFilePath()
         {
             String exeDir = AppDomain.CurrentDomain.BaseDirectory;
             return System.IO.Path.Combine(exeDir, "files.capganizer");
         }
 
-        private static HashSet<String> GetProcessedFiles()
+        private HashSet<String> GetProcessedFiles()
         {
             var logFilePath = GetProcessFilesLogFilePath();
             if (System.IO.File.Exists(logFilePath))
@@ -41,7 +47,7 @@ namespace CapGanizer
             }
         }
 
-        private static Boolean WriteProcessedFiles(HashSet<string> lines)
+        private Boolean WriteProcessedFiles(HashSet<string> lines)
         {
             var logFilePath = GetProcessFilesLogFilePath();
             var linesToWrite = new String[lines.Count];
@@ -59,7 +65,7 @@ namespace CapGanizer
             }
         }
 
-        public static Boolean ProcessDirectory(String targetDir)
+        public Boolean ProcessDirectory(String targetDir)
         {
             Trace.TraceInformation($"Starting to process {targetDir}");
             var captureDir = System.IO.Path.Combine(Environment.GetFolderPath(System.Environment.SpecialFolder.MyVideos), "Captures");
@@ -72,6 +78,7 @@ namespace CapGanizer
             var filenamePattern = new Regex(@"^(.*?)(\d{1,2}.\d{1,2}.\d{4}.\d{1,2}.\d{1,2}.\d{1,2}.PM)(\.[a-zA-Z]+)$", RegexOptions.Compiled);
             int filesProcessed = 0;
             var directoriesAlreadyAvailable = new HashSet<String> { };
+            var directoriesFailedToBeCreated = new HashSet<string> { };
             var processedFilesSet = GetProcessedFiles();
             Trace.TraceInformation($"{processedFilesSet.Count} files found in the archive");
             foreach (var fileFullPath in files)
@@ -94,6 +101,10 @@ namespace CapGanizer
                         continue;
                     }
                     var targetFileDir = System.IO.Path.Combine(targetDir, gameName);
+                    if (directoriesFailedToBeCreated.Contains(targetFileDir))
+                    {
+                        continue;
+                    }
                     var targetFilepath = System.IO.Path.Combine(targetFileDir, fileName);
                     if (!directoriesAlreadyAvailable.Contains(targetFileDir))
                     {
@@ -105,8 +116,9 @@ namespace CapGanizer
                             }
                             catch (Exception e)
                             {
-                                Trace.TraceError($"Could not create the directory {targetFileDir}");
-                                return false;
+                                Trace.TraceError($"Could not create the directory {targetFileDir} - will not retry this folder");
+                                directoriesFailedToBeCreated.Add(targetFileDir);
+                                continue;
                             }
 
                         }
@@ -126,7 +138,6 @@ namespace CapGanizer
                     catch (Exception e)
                     {
                         Trace.TraceError($"Could not copy the file to {targetFilepath}");
-                        return false;
                     }
                 }
             }
