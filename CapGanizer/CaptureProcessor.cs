@@ -75,7 +75,8 @@ namespace CapGanizer
                 return false;
             }
             var files = System.IO.Directory.EnumerateFiles(captureDir);
-            var filenamePattern = new Regex(@"^(.*?)(\d{1,2}.\d{1,2}.\d{4}.\d{1,2}.\d{1,2}.\d{1,2}.PM)(\.[a-zA-Z]+)$", RegexOptions.Compiled);
+            var filenamePattern = new Regex(@"^(.*?)(\d{1,2}.\d{1,2}.\d{4}.\d{1,2}.\d{1,2}.\d{1,2}.PM)(\.[a-zA-Z0-9]+)$", RegexOptions.Compiled);
+            var videoFilenamePattern = new Regex(@"^(.*?)(\d{1,4}.\d{1,2}.\d{1,2}.\d{1,2}.\d{1,2}.\d{1,2})(\.[a-zA-Z0-9]+)$", RegexOptions.Compiled);
             int filesProcessed = 0;
             var directoriesAlreadyAvailable = new HashSet<String> { };
             var directoriesFailedToBeCreated = new HashSet<string> { };
@@ -88,7 +89,15 @@ namespace CapGanizer
                 {
                     continue;
                 }
-                var match = filenamePattern.Match(fileName);
+                Match match;
+                if (fileName.Substring(fileName.Length - 4) == ".mp4")
+                {
+                    match = videoFilenamePattern.Match(fileName);
+                }
+                else
+                {
+                    match = filenamePattern.Match(fileName);
+                }
                 if (match.Success)
                 {
                     var gameName = match.Groups[1].Value;
