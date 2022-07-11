@@ -7,19 +7,19 @@ namespace CapGanizer
 {
     class CaptureProcessor
     {
-        Program.Options o;
+        String targetDir;
 
-        public CaptureProcessor(Program.Options o)
+        public CaptureProcessor(String targetDir)
         {
-            this.o = o;
+            this.targetDir = targetDir;
         }
 
-        public Boolean ProcessDirectories(IEnumerable<string> targetDirs)
+        public static Boolean ProcessDirectories(IEnumerable<string> targetDirs)
         {
             Boolean isSuccesfull = true;
             foreach (String targetDir in targetDirs)
             {
-                isSuccesfull = ProcessDirectory(targetDir);
+                isSuccesfull = new CaptureProcessor(targetDir).ProcessDirectory();
                 if (!isSuccesfull)
                 {
                     return false;
@@ -31,7 +31,7 @@ namespace CapGanizer
         private String GetProcessFilesLogFilePath()
         {
             String exeDir = AppDomain.CurrentDomain.BaseDirectory;
-            return System.IO.Path.Combine(exeDir, "files.capganizer");
+            return System.IO.Path.Combine(exeDir, $"files_{MD5Helper.GetMD5ValueForString(targetDir)}.capganizer");
         }
 
         private HashSet<String> GetProcessedFiles()
@@ -65,7 +65,7 @@ namespace CapGanizer
             }
         }
 
-        public Boolean ProcessDirectory(String targetDir)
+        public Boolean ProcessDirectory()
         {
             Trace.TraceInformation($"Starting to process {targetDir}");
             var captureDir = System.IO.Path.Combine(Environment.GetFolderPath(System.Environment.SpecialFolder.MyVideos), "Captures");
@@ -82,11 +82,13 @@ namespace CapGanizer
             var directoriesFailedToBeCreated = new HashSet<string> { };
             var processedFilesSet = GetProcessedFiles();
             Trace.TraceInformation($"{processedFilesSet.Count} files found in the archive");
+            Int64 filesSkipped = 0;
             foreach (var fileFullPath in files)
             {
                 var fileName = System.IO.Path.GetFileName(fileFullPath);
                 if (processedFilesSet.Contains(fileName))
                 {
+                    filesSkipped++;
                     continue;
                 }
                 Match match;
@@ -151,6 +153,7 @@ namespace CapGanizer
                 }
             }
             WriteProcessedFiles(processedFilesSet);
+            Trace.TraceInformation($"Saved time by not processing {filesSkipped} files");
             Trace.TraceInformation($"Completed processing {targetDir}");
             return true;
         }

@@ -21,7 +21,7 @@ namespace CapGanizer
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
                    {
-                       new CaptureProcessor(o).ProcessDirectories(o.TargetDirectory);
+                       CaptureProcessor.ProcessDirectories(o.TargetDirectory);
                    });
         }
 
